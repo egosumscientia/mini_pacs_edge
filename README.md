@@ -89,13 +89,15 @@ docker exec -it mini_pacs_edge python /app/sender_simulator.py /app/data/dicoms 
 Generar estudios dinamicos (sin archivos previos):
 
 ```powershell
-python sender_simulator.py --generate 3 --out-dir ./tmp_dicoms --calling-aet ORTHANC
+python sender_simulator.py --generate 3 --out-dir ./tmp_dicoms --patient-name TEST^SIM --patient-id SIM001 --calling-aet ORTHANC
 ```
+
+Nota: si no especificas `--patient-name` y `--patient-id`, el simulador usa `TEST^EDGE` y `EDGE001` por defecto.
 
 Desde contenedor (ruta dentro del contenedor):
 
 ```powershell
-docker exec -it mini_pacs_edge python /app/sender_simulator.py --generate 3 --out-dir /app/data/dicoms --calling-aet ORTHANC
+docker exec -it mini_pacs_edge python /app/sender_simulator.py --generate 3 --out-dir /app/data/dicoms --patient-name TEST^SIM --patient-id SIM001 --calling-aet ORTHANC
 ```
 
 Reescribir UIDs en cada envio (evita duplicados de Study/SOP):
@@ -125,7 +127,7 @@ docker exec -it mini_pacs_edge python /app/sender_simulator.py /app/data/dicoms/
 Consecutivo de estudios (PostgreSQL):
 
 ```powershell
-docker exec -it mini_pacs_edge python /app/sender_simulator.py --generate 3 --seq-from-db --patient-id EDGE --patient-name TEST^EDGE --series-description SYNTHETIC --calling-aet ORTHANC
+docker exec -it mini_pacs_edge python /app/sender_simulator.py --generate 3 --seq-from-db --patient-id SIM --patient-name TEST^SIM --series-description SYNTHETIC --calling-aet ORTHANC
 ```
 
 Resetear cola y consecutivo:
@@ -319,7 +321,7 @@ python sender_simulator.py ./path/to/dicom --calling-aet BAD_AET
 Desde contenedor (ruta dentro del contenedor):
 
 ```powershell
-docker exec -it mini_pacs_edge python /app/sender_simulator.py --generate 1 --out-dir /app/data/dicoms --calling-aet BAD_AET
+docker exec -it mini_pacs_edge python /app/sender_simulator.py --generate 1 --out-dir /app/data/dicoms --patient-name TEST^SIM --patient-id SIM000 --calling-aet BAD_AET
 ```
 
 Revisar logs:
