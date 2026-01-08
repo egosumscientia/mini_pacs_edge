@@ -92,9 +92,29 @@ Reescribir UIDs manualmente:
 python sender_simulator.py ./path/to/dicom --rewrite-uids --study-uid 1.2.3 --series-uid 1.2.3.4 --sop-uid 1.2.3.4.5 --calling-aet ORTHANC
 ```
 
+Consecutivo de estudios (PostgreSQL):
+
+```sh
+docker exec -it mini_pacs_edge python /app/sender_simulator.py --generate 3 --seq-from-db --patient-id EDGE --patient-name TEST^EDGE --series-description SYNTHETIC --calling-aet ORTHANC
+```
+
+Resetear cola y consecutivo:
+
+```sh
+docker exec -it mini_pacs_edge python /app/cli.py reset-db
+```
+
 ### Ver estudios en OHIF
 
 - Abrir `http://localhost:3000` en el navegador.
+
+### Limpiar Orthanc (base vacia)
+
+```sh
+docker compose down
+rm -rf ./data/orthanc
+docker compose up -d --build
+```
 
 ### Logs utiles
 
