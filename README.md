@@ -58,49 +58,79 @@ Nota: si usas `sender_simulator.py` desde el host, usa `--calling-aet ORTHANC` o
 
 ### Levantar servicios
 
-```sh
+```powershell
 docker compose up --build
 ```
 
 ### Enviar un estudio desde el host
 
-```sh
+```powershell
 python sender_simulator.py ./path/to/dicom --calling-aet ORTHANC
+```
+
+Desde contenedor (ruta dentro del contenedor):
+
+```powershell
+docker exec -it mini_pacs_edge python /app/sender_simulator.py /app/data/dicoms/synthetic_1.dcm --calling-aet ORTHANC
 ```
 
 Burst send:
 
-```sh
+```powershell
 python sender_simulator.py ./dicoms --burst 5 --delay-ms 50 --calling-aet ORTHANC
+```
+
+Desde contenedor (ruta dentro del contenedor):
+
+```powershell
+docker exec -it mini_pacs_edge python /app/sender_simulator.py /app/data/dicoms --burst 5 --delay-ms 50 --calling-aet ORTHANC
 ```
 
 Generar estudios dinamicos (sin archivos previos):
 
-```sh
+```powershell
 python sender_simulator.py --generate 3 --out-dir ./tmp_dicoms --calling-aet ORTHANC
+```
+
+Desde contenedor (ruta dentro del contenedor):
+
+```powershell
+docker exec -it mini_pacs_edge python /app/sender_simulator.py --generate 3 --out-dir /app/data/dicoms --calling-aet ORTHANC
 ```
 
 Reescribir UIDs en cada envio (evita duplicados de Study/SOP):
 
-```sh
+```powershell
 python sender_simulator.py ./path/to/dicom --rewrite-uids --calling-aet ORTHANC
+```
+
+Desde contenedor (ruta dentro del contenedor):
+
+```powershell
+docker exec -it mini_pacs_edge python /app/sender_simulator.py /app/data/dicoms/synthetic_1.dcm --rewrite-uids --calling-aet ORTHANC
 ```
 
 Reescribir UIDs manualmente:
 
-```sh
+```powershell
 python sender_simulator.py ./path/to/dicom --rewrite-uids --study-uid 1.2.3 --series-uid 1.2.3.4 --sop-uid 1.2.3.4.5 --calling-aet ORTHANC
+```
+
+Desde contenedor (ruta dentro del contenedor):
+
+```powershell
+docker exec -it mini_pacs_edge python /app/sender_simulator.py /app/data/dicoms/synthetic_1.dcm --rewrite-uids --study-uid 1.2.3 --series-uid 1.2.3.4 --sop-uid 1.2.3.4.5 --calling-aet ORTHANC
 ```
 
 Consecutivo de estudios (PostgreSQL):
 
-```sh
+```powershell
 docker exec -it mini_pacs_edge python /app/sender_simulator.py --generate 3 --seq-from-db --patient-id EDGE --patient-name TEST^EDGE --series-description SYNTHETIC --calling-aet ORTHANC
 ```
 
 Resetear cola y consecutivo:
 
-```sh
+```powershell
 docker exec -it mini_pacs_edge python /app/cli.py reset-db
 ```
 
@@ -110,15 +140,15 @@ docker exec -it mini_pacs_edge python /app/cli.py reset-db
 
 ### Limpiar Orthanc (base vacia)
 
-```sh
+```powershell
 docker compose down
-rm -rf ./data/orthanc
+Remove-Item -Recurse -Force .\data\orthanc
 docker compose up -d --build
 ```
 
 ### Logs utiles
 
-```sh
+```powershell
 docker compose logs -f edge
 docker compose logs -f app01
 docker compose logs -f orthanc
@@ -126,7 +156,7 @@ docker compose logs -f orthanc
 
 ### Detener todo
 
-```sh
+```powershell
 docker compose down
 ```
 
@@ -161,7 +191,7 @@ Esto bloquea acceso directo de workers a Orthanc.
 
 ## Faults (inside container)
 
-```sh
+```powershell
 docker exec -it mini_pacs_edge python /app/cli.py inject-fault reject_all
 docker exec -it mini_pacs_edge python /app/cli.py inject-fault disk_full
 docker exec -it mini_pacs_edge python /app/cli.py inject-fault io_delay_ms
@@ -202,22 +232,22 @@ docker exec -it mini_pacs_edge python /app/cli.py clear-faults
 
 1) AE permitido entra y se procesa (debe llegar a worker y volver a Orthanc)
 
-```sh
-docker exec -it mini_pacs_edge python /app/sender_simulator.py /tmp/test.dcm --host edge --port 11112 --calling-aet ORTHANC --called-aet MINI_EDGE
+```powershell
+docker exec -it mini_pacs_edge python /app/sender_simulator.py /app/data/dicoms/synthetic_1.dcm --host edge --port 11112 --calling-aet ORTHANC --called-aet MINI_EDGE
 docker compose logs edge | Select-String -Pattern "forward_pacs|forward_worker|ai_result"
 ```
 
 2) AE no permitido es rechazado
 
-```sh
-docker exec -it mini_pacs_edge python /app/sender_simulator.py /tmp/test.dcm --host edge --port 11112 --calling-aet NOPE_AET --called-aet MINI_EDGE
+```powershell
+docker exec -it mini_pacs_edge python /app/sender_simulator.py /app/data/dicoms/synthetic_1.dcm --host edge --port 11112 --calling-aet NOPE_AET --called-aet MINI_EDGE
 docker compose logs edge | Select-String -Pattern "NOPE_AET|calling_aet_not_allowed"
 ```
 
 3) Workers no alcanzan Orthanc por red
 
-```sh
-docker exec -it mini_pacs_edge-app01-1 python - <<'PY'
+```powershell
+@'
 import socket
 sock = socket.socket()
 sock.settimeout(2)
@@ -228,12 +258,12 @@ except Exception as exc:
     print("expected failure:", exc)
 finally:
     sock.close()
-PY
+'@ | docker exec -i mini_pacs_edge-app01-1 python -
 ```
 
 4) Worker apagado -> PACS sigue recibiendo original
 
-```sh
+```powershell
 docker compose stop app01
 python sender_simulator.py ./path/to/dicom --calling-aet ORTHANC
 docker compose logs edge | Select-String -Pattern "forward_pacs|forward_worker"
@@ -243,7 +273,7 @@ docker compose logs edge | Select-String -Pattern "forward_pacs|forward_worker"
 
 Configura un delay en un worker (ejemplo app01) y reinicia:
 
-```sh
+```powershell
 # en docker-compose.yml agrega en app01:
 #   WORKER_DELAY_SECONDS: "12"
 docker compose up -d --build app01
@@ -253,14 +283,20 @@ docker compose logs edge | Select-String -Pattern "forward_pacs|ai_result"
 
 ### Enviar un estudio
 
-```sh
+```powershell
 python sender_simulator.py ./path/to/dicom --calling-aet ORTHANC
+```
+
+Enviar varios en un solo comando (mismo set de archivos, repetido N veces):
+
+```powershell
+python sender_simulator.py ./dicoms --burst 5 --delay-ms 50 --calling-aet ORTHANC
 ```
 
 ### Verificar aislamiento (workers -> orthanc debe fallar)
 
-```sh
-docker exec -it mini_pacs_edge-app01-1 python - <<'PY'
+```powershell
+@'
 import socket
 sock = socket.socket()
 sock.settimeout(2)
@@ -271,29 +307,35 @@ except Exception as exc:
     print("expected failure:", exc)
 finally:
     sock.close()
-PY
+'@ | docker exec -i mini_pacs_edge-app01-1 python -
 ```
 
 ### Verificar allowlist de AE Titles (debe ser rechazado)
 
-```sh
+```powershell
 python sender_simulator.py ./path/to/dicom --calling-aet BAD_AET
+```
+
+Desde contenedor (ruta dentro del contenedor):
+
+```powershell
+docker exec -it mini_pacs_edge python /app/sender_simulator.py --generate 1 --out-dir /app/data/dicoms --calling-aet BAD_AET
 ```
 
 Revisar logs:
 
-```sh
-docker compose logs -f edge
+```powershell
+docker compose logs -f edge | Select-String -Pattern "BAD_AET|calling_aet_not_allowed"
 ```
 
 ### Verificar trazabilidad en PostgreSQL
 
-```sh
+```powershell
 docker exec -it mini_pacs_edge python /app/cli.py status --study <StudyInstanceUID>
 ```
 
 Y en logs (correlacion):
 
-```sh
+```powershell
 docker compose logs -f edge
 ```
