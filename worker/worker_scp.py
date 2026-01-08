@@ -1,5 +1,6 @@
 import datetime
 import os
+import time
 
 from pydicom.dataset import FileDataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian, PYDICOM_IMPLEMENTATION_UID, SecondaryCaptureImageStorage as SecondaryCaptureImageStorageUID, generate_uid
@@ -12,6 +13,7 @@ GATEWAY_PORT = int(os.getenv("GATEWAY_PORT", "11112"))
 GATEWAY_AE_TITLE = os.getenv("GATEWAY_AE_TITLE", "MINI_EDGE")
 WORKER_AE_TITLE = os.getenv("WORKER_AE_TITLE", "WORKER")
 WORKER_PORT = int(os.getenv("WORKER_PORT", "11112"))
+WORKER_DELAY_SECONDS = float(os.getenv("WORKER_DELAY_SECONDS", "0"))
 
 
 def _build_result(ds_in) -> FileDataset:
@@ -67,6 +69,8 @@ def handle_store(event: evt.Event) -> int:
     ds_in.file_meta = event.file_meta
 
     try:
+        if WORKER_DELAY_SECONDS > 0:
+            time.sleep(WORKER_DELAY_SECONDS)
         result = _build_result(ds_in)
         _send_result(result)
         return 0x0000

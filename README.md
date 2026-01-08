@@ -3,9 +3,12 @@
 Edge DICOM Gateway for hospital edge without Kubernetes. Simulates C-STORE reception, a persistent local queue, typical edge failures, and worker routing for SRE diagnosis.
 
 ```
-ORTHANC/PACS -> [C-STORE] -> edge (receiver/queue/forwarder) -> workers -> edge -> ORTHANC/PACS
-                                                  |
-                                                  +-> PostgreSQL (queue/state)
+ORTHANC/PACS -> [C-STORE] -> edge (receiver/queue)
+                                | \
+                                |  +-> workers (async) -> edge -> ORTHANC/PACS
+                                +-> ORTHANC/PACS (original, immediate)
+                                |
+                                +-> PostgreSQL (queue/state)
 ```
 
 ## Architecture
@@ -22,9 +25,10 @@ ORTHANC/PACS -> [C-STORE] -> edge (receiver/queue/forwarder) -> workers -> edge 
 
 1) Orthanc/PACS envia C-STORE al edge.
 2) Edge guarda en `data/incoming`, encola en PostgreSQL.
-3) Edge envia C-STORE a un worker (round-robin).
-4) Worker devuelve un DICOM de resultado al edge (C-STORE).
-5) Edge detecta resultado (`SeriesDescription=AI_RESULT`) y reenvia a Orthanc/PACS.
+3) Edge envia INMEDIATAMENTE el DICOM original a Orthanc/PACS (C-STORE).
+4) En paralelo, edge envia el mismo DICOM a un worker (round-robin, async).
+5) El worker devuelve un DICOM de resultado al edge (C-STORE).
+6) Edge detecta resultado (`SeriesDescription=AI_RESULT`), correlaciona y reenvia a Orthanc/PACS.
 
 ### Ports
 
@@ -38,9 +42,10 @@ Archivo: `config.yaml`
 
 - `edge.ae_title`, `edge.port`, rutas de data/logs.
 - `edge.allowed_calling_aets`: allowlist de Calling AE Titles (incluye Orthanc y workers).
-- `forwarder.mode: gateway` para ruteo automatico.
+- `forwarder.mode: parallel` para envio inmediato a PACS + worker async.
 - `forwarder.workers`: lista de workers con `host`, `port`, `ae_title`.
 - `forwarder.orthanc`: destino PACS/Orthanc (host/port/AET).
+- `forwarder.worker_timeout_seconds`: timeout simple por worker.
 
 Nota: si usas `sender_simulator.py` desde el host, usa `--calling-aet ORTHANC` o agrega ese AET a `edge.allowed_calling_aets`.
 
@@ -92,16 +97,20 @@ docker compose down
 Los workers son DICOM SCP. El Gateway (edge) actua como DICOM SCU hacia los workers y hacia Orthanc/PACS.
 
 - El edge recibe C-STORE desde Orthanc/PACS.
-- El edge envia C-STORE a un worker (round-robin).
+- El edge reenvia INMEDIATAMENTE el original a Orthanc/PACS.
+- En paralelo, envia C-STORE a un worker (round-robin) sin bloquear al PACS.
 - El worker devuelve un objeto DICOM de resultado al edge (C-STORE).
 - El edge reenvia el resultado a Orthanc/PACS.
 
 Config en `config.yaml`:
 
-- `forwarder.mode: gateway` para ruteo automatico.
+- `forwarder.mode: parallel` para flujo asincrono.
 - `forwarder.workers`: lista de workers con `host`, `port`, `ae_title`.
+- `forwarder.worker_timeout_seconds`: timeout simple por worker.
 
 Los resultados de los workers se marcan con `SeriesDescription = AI_RESULT` y se reenvian a Orthanc/PACS.
+
+Para pruebas de latencia, puedes usar `WORKER_DELAY_SECONDS` en el servicio del worker.
 
 ## Network isolation (Docker)
 
@@ -151,13 +160,13 @@ docker exec -it mini_pacs_edge python /app/cli.py clear-faults
 
 ## Validation (lab)
 
-### Checklist rapido (arquitectura nueva)
+### Checklist rapido (Nivel 2)
 
 1) AE permitido entra y se procesa (debe llegar a worker y volver a Orthanc)
 
 ```sh
 docker exec -it mini_pacs_edge python /app/sender_simulator.py /tmp/test.dcm --host edge --port 11112 --calling-aet ORTHANC --called-aet MINI_EDGE
-docker compose logs edge | Select-String -Pattern "worker|result|forward"
+docker compose logs edge | Select-String -Pattern "forward_pacs|forward_worker|ai_result"
 ```
 
 2) AE no permitido es rechazado
@@ -182,6 +191,26 @@ except Exception as exc:
 finally:
     sock.close()
 PY
+```
+
+4) Worker apagado -> PACS sigue recibiendo original
+
+```sh
+docker compose stop app01
+python sender_simulator.py ./path/to/dicom --calling-aet ORTHANC
+docker compose logs edge | Select-String -Pattern "forward_pacs|forward_worker"
+```
+
+5) Worker lento -> PACS ya tenia el estudio, resultado llega despues
+
+Configura un delay en un worker (ejemplo app01) y reinicia:
+
+```sh
+# en docker-compose.yml agrega en app01:
+#   WORKER_DELAY_SECONDS: "12"
+docker compose up -d --build app01
+python sender_simulator.py ./path/to/dicom --calling-aet ORTHANC
+docker compose logs edge | Select-String -Pattern "forward_pacs|ai_result"
 ```
 
 ### Enviar un estudio

@@ -22,11 +22,12 @@ class Forwarder:
         self.config = get_config()
         forwarder_config = self.config["forwarder"]
         self.mode = str(forwarder_config.get("mode", "dummy")).lower()
-        if self.mode not in {"dummy", "orthanc", "workers", "gateway"}:
+        if self.mode not in {"dummy", "orthanc", "workers", "gateway", "parallel"}:
             raise ValueError(f"Unsupported forwarder mode: {self.mode}")
         self.max_retries = int(forwarder_config["max_retries"])
         self.backoff_base = int(forwarder_config["backoff_base_seconds"])
         self.poll_interval = int(forwarder_config["poll_interval_seconds"])
+        self.worker_timeout_seconds = float(forwarder_config.get("worker_timeout_seconds", 10))
         self.data_root = self.config["edge"]["data_root"]
         self.orthanc = forwarder_config.get("orthanc", {})
         self.workers = forwarder_config.get("workers", [])
@@ -36,6 +37,9 @@ class Forwarder:
 
     def run(self) -> None:
         while True:
+            if self.mode == "parallel":
+                time.sleep(self.poll_interval)
+                continue
             item = get_next_queued()
             if item is None:
                 time.sleep(self.poll_interval)
@@ -51,16 +55,16 @@ class Forwarder:
 
                 destination = self.mode
                 if self.mode == "workers":
-                    self._send_to_worker(queued_path, item.id)
+                    self.send_to_worker(queued_path, item.id)
                 elif self.mode == "orthanc":
-                    self._send_to_orthanc(queued_path)
+                    self.send_to_orthanc(queued_path)
                 elif self.mode == "gateway":
                     route = self._determine_route(queued_path)
                     if route == "worker":
-                        self._send_to_worker(queued_path, item.id)
+                        self.send_to_worker(queued_path, item.id)
                         destination = "worker"
                     elif route == "orthanc":
-                        self._send_to_orthanc(queued_path)
+                        self.send_to_orthanc(queued_path)
                         destination = "orthanc"
                     else:
                         raise ForwardError(f"unknown_route:{route}")
@@ -97,7 +101,7 @@ class Forwarder:
         shutil.move(source_path, dest_path)
         return dest_path
 
-    def _send_to_orthanc(self, source_path: str) -> None:
+    def send_to_orthanc(self, source_path: str) -> None:
         host = str(self.orthanc.get("host", "orthanc"))
         port = int(self.orthanc.get("port", 4242))
         called_aet = str(self.orthanc.get("ae_title", "ORTHANC"))
@@ -140,14 +144,14 @@ class Forwarder:
         if status_code != 0x0000:
             raise ForwardError(f"c_store_failure:{status_code}")
 
-    def _send_to_worker(self, source_path: str, item_id: int) -> None:
+    def send_to_worker(self, source_path: str, item_id: int) -> dict:
         if not self._worker_cycle:
             raise ForwardError("workers_unconfigured")
         worker = next(self._worker_cycle)
         host = str(worker.get("host"))
         port = int(worker.get("port", 11112))
         called_aet = str(worker.get("ae_title", "WORKER"))
-        timeout_s = float(worker.get("timeout_s", 10))
+        timeout_s = float(worker.get("timeout_s", self.worker_timeout_seconds))
         mark_worker_sent(item_id, host, called_aet)
 
         ae = AE(ae_title=self.config["edge"]["ae_title"])
@@ -187,17 +191,11 @@ class Forwarder:
         if status_code != 0x0000:
             raise ForwardError(f"worker_c_store_failure:{status_code}")
 
-        log_event(
-            "info",
-            "worker",
-            study_uid=getattr(ds, "StudyInstanceUID", None),
-            sop_uid=getattr(ds, "SOPInstanceUID", None),
-            ae_title=self.config["edge"]["ae_title"],
-            worker=worker,
-            remote_ip=None,
-            outcome="delivered",
-            error=None,
-        )
+        return {
+            "host": host,
+            "port": port,
+            "ae_title": called_aet,
+        }
 
     def _determine_route(self, source_path: str) -> str:
         ds = pydicom.dcmread(source_path, stop_before_pixels=True)

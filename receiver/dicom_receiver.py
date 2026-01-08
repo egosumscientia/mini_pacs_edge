@@ -6,7 +6,7 @@ from pynetdicom.sop_class import CTImageStorage, MRImageStorage, SecondaryCaptur
 from forwarder.forwarder import Forwarder
 from queue_store.queue_manager import init_db
 from receiver.config import ensure_directories, load_config, log_event
-from receiver.handlers import handle_echo, handle_store
+from receiver.handlers import handle_echo, handle_store, set_forwarder
 
 
 def start_receiver() -> None:
@@ -28,7 +28,9 @@ def start_receiver() -> None:
     ]
 
     forwarder = Forwarder()
-    threading.Thread(target=forwarder.run, daemon=True).start()
+    set_forwarder(forwarder)
+    if forwarder.mode != "parallel":
+        threading.Thread(target=forwarder.run, daemon=True).start()
 
     log_event("info", "receive", study_uid=None, sop_uid=None, ae_title=ae_title, remote_ip=None, outcome="listening", error=None)
     ae.start_server(("0.0.0.0", port), block=True, evt_handlers=handlers)
