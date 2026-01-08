@@ -71,7 +71,7 @@ python sender_simulator.py ./path/to/dicom --calling-aet ORTHANC
 Desde contenedor (ruta dentro del contenedor):
 
 ```powershell
-docker exec -it mini_pacs_edge python /app/sender_simulator.py /app/data/dicoms/synthetic_1.dcm --calling-aet ORTHANC
+docker exec -it mini_pacs_edge python /app/sender_simulator.py /app/data/dicoms/synthetic_1.dcm --rewrite-uids --calling-aet ORTHANC --called-aet MINI_EDGE --host edge --port 11112
 ```
 
 Burst send:
@@ -83,7 +83,15 @@ python sender_simulator.py ./dicoms --burst 5 --delay-ms 50 --calling-aet ORTHAN
 Desde contenedor (ruta dentro del contenedor):
 
 ```powershell
-docker exec -it mini_pacs_edge python /app/sender_simulator.py /app/data/dicoms --burst 5 --delay-ms 50 --calling-aet ORTHANC
+docker exec -it mini_pacs_edge python /app/sender_simulator.py --generate 10 --out-dir /app/data/dicoms --patient-name TEST^SIM --patient-id SIM --calling-aet ORTHANC --called-aet MINI_EDGE --host edge --port 11112
+```
+
+Nota (contenedor): apunta explicitamente al edge y al AET correcto para evitar rechazos (`0xA700`).
+
+Burst con UIDs nuevos en cada envio (evita duplicados de Study/SOP):
+
+```powershell
+docker exec -it mini_pacs_edge python /app/sender_simulator.py /app/data/dicoms --burst 5 --delay-ms 50 --rewrite-uids --calling-aet ORTHANC --called-aet MINI_EDGE --host edge --port 11112
 ```
 
 Generar estudios dinamicos (sin archivos previos):
@@ -98,6 +106,12 @@ Desde contenedor (ruta dentro del contenedor):
 
 ```powershell
 docker exec -it mini_pacs_edge python /app/sender_simulator.py --generate 3 --out-dir /app/data/dicoms --patient-name TEST^SIM --patient-id SIM001 --calling-aet ORTHANC
+```
+
+Generar 10 estudios nuevos (ejemplo):
+
+```powershell
+docker exec -it mini_pacs_edge python /app/sender_simulator.py --generate 10 --out-dir /app/data/dicoms --patient-name TEST^SIM --patient-id SIM --calling-aet ORTHANC --called-aet MINI_EDGE --host edge --port 11112
 ```
 
 Reescribir UIDs en cada envio (evita duplicados de Study/SOP):
@@ -127,7 +141,15 @@ docker exec -it mini_pacs_edge python /app/sender_simulator.py /app/data/dicoms/
 Consecutivo de estudios (PostgreSQL):
 
 ```powershell
-docker exec -it mini_pacs_edge python /app/sender_simulator.py --generate 3 --seq-from-db --patient-id SIM --patient-name TEST^SIM --series-description SYNTHETIC --calling-aet ORTHANC
+docker exec -it mini_pacs_edge python /app/sender_simulator.py --generate 3 --seq-from-db --patient-id SIM --patient-name TEST^SIM --series-description SYNTHETIC --calling-aet ORTHANC --called-aet MINI_EDGE --host edge --port 11112
+```
+
+Consecutivo de estudios (10 ejemplos):
+
+```powershell
+docker exec -it mini_pacs_edge python /app/sender_simulator.py --generate 10 --seq-from-db --patient-id SIM --patient-name TEST^SIM --series-description SYNTHETIC --calling-aet ORTHANC --called-aet MINI_EDGE --host edge --port 11112
+
+Nota: si todos los estudios se ven "iguales" en OHIF es porque `patient-name`/`patient-id`/`series-description` son iguales. Usa `--seq-from-db` (o cambia esos valores) para ver consecutivos distintos en la lista.
 ```
 
 Resetear cola y consecutivo:
@@ -289,11 +311,17 @@ docker compose logs edge | Select-String -Pattern "forward_pacs|ai_result"
 python sender_simulator.py ./path/to/dicom --calling-aet ORTHANC
 ```
 
+docker exec -it mini_pacs_edge python /app/sender_simulator.py /app/data/dicoms/synthetic_1.dcm --calling-aet ORTHANC
+
+
 Enviar varios en un solo comando (mismo set de archivos, repetido N veces):
 
 ```powershell
 python sender_simulator.py ./dicoms --burst 5 --delay-ms 50 --calling-aet ORTHANC
 ```
+
+docker exec -it mini_pacs_edge python /app/sender_simulator.py /app/data/dicoms --burst 5 --delay-ms 50 --calling-aet ORTHANC
+
 
 ### Verificar aislamiento (workers -> orthanc debe fallar)
 
