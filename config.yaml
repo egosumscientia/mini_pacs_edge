@@ -6,7 +6,7 @@ edge:
   sqlite_path: "data/queue.db"
 
 forwarder:
-  mode: "orthanc"
+  mode: "gateway"
   max_retries: 5
   backoff_base_seconds: 2
   poll_interval_seconds: 2
@@ -15,6 +15,27 @@ forwarder:
     port: 4242
     ae_title: "ORTHANC"
     timeout_s: 10
+  workers:
+    - host: "app01"
+      port: 11112
+      ae_title: "APP01"
+      timeout_s: 10
+    - host: "app02"
+      port: 11112
+      ae_title: "APP02"
+      timeout_s: 10
+    - host: "app03"
+      port: 11112
+      ae_title: "APP03"
+      timeout_s: 10
+    - host: "app04"
+      port: 11112
+      ae_title: "APP04"
+      timeout_s: 10
+    - host: "app05"
+      port: 11112
+      ae_title: "APP05"
+      timeout_s: 10
 
 fault_injection:
   reject_all: false

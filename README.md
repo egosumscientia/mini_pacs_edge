@@ -1,9 +1,11 @@
 # mini_pacs_edge
 
-Edge DICOM Receiver for hospital edge without Kubernetes. Simulates C-STORE reception, a persistent local queue, typical edge failures, and a dummy forwarder for SRE diagnosis.
+Edge DICOM Gateway for hospital edge without Kubernetes. Simulates C-STORE reception, a persistent local queue, typical edge failures, and worker routing for SRE diagnosis.
 
 ```
-SENDER -> [C-STORE] -> edge (receiver/queue/forwarder) -> PostgreSQL
+ORTHANC/PACS -> [C-STORE] -> edge (receiver/queue/forwarder) -> workers -> edge -> ORTHANC/PACS
+                                                  |
+                                                  +-> PostgreSQL (queue/state)
 ```
 
 ## Start
@@ -11,6 +13,22 @@ SENDER -> [C-STORE] -> edge (receiver/queue/forwarder) -> PostgreSQL
 ```sh
 docker compose up --build
 ```
+
+## Workers (apps IA)
+
+Los workers son DICOM SCP. El Gateway (edge) actua como DICOM SCU hacia los workers y hacia Orthanc/PACS.
+
+- El edge recibe C-STORE desde Orthanc/PACS.
+- El edge envia C-STORE a un worker (round-robin).
+- El worker devuelve un objeto DICOM de resultado al edge (C-STORE).
+- El edge reenvia el resultado a Orthanc/PACS.
+
+Config en `config.yaml`:
+
+- `forwarder.mode: gateway` para ruteo automatico.
+- `forwarder.workers`: lista de workers con `host`, `port`, `ae_title`.
+
+Los resultados de los workers se marcan con `SeriesDescription = AI_RESULT` y se reenvian a Orthanc/PACS.
 
 ## Send studies
 

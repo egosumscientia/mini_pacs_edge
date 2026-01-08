@@ -55,127 +55,72 @@ services:
       - ./ohif-init-service-worker.js:/usr/share/nginx/html/init-service-worker.js:ro
     restart: unless-stopped
   app01:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    entrypoint: ["python", "-u", "-m", "worker.worker_scp"]
+    environment:
+      WORKER_AE_TITLE: "APP01"
+      WORKER_PORT: 11112
+      GATEWAY_HOST: "edge"
+      GATEWAY_PORT: 11112
+      GATEWAY_AE_TITLE: "MINI_EDGE"
     expose:
-      - "8080"
-    command:
-      - python
-      - -u
-      - -c
-      - |
-        import time
-        from http.server import BaseHTTPRequestHandler, HTTPServer
-
-        class Handler(BaseHTTPRequestHandler):
-            def _handle(self):
-                print("app01: received request", flush=True)
-                time.sleep(0.2)
-                self.send_response(200)
-                self.end_headers()
-                self.wfile.write(b"OK")
-
-            do_GET = _handle
-            do_POST = _handle
-
-        HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
+      - "11112"
     restart: unless-stopped
   app02:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    entrypoint: ["python", "-u", "-m", "worker.worker_scp"]
+    environment:
+      WORKER_AE_TITLE: "APP02"
+      WORKER_PORT: 11112
+      GATEWAY_HOST: "edge"
+      GATEWAY_PORT: 11112
+      GATEWAY_AE_TITLE: "MINI_EDGE"
     expose:
-      - "8080"
-    command:
-      - python
-      - -u
-      - -c
-      - |
-        import time
-        from http.server import BaseHTTPRequestHandler, HTTPServer
-
-        class Handler(BaseHTTPRequestHandler):
-            def _handle(self):
-                print("app02: received request", flush=True)
-                time.sleep(0.2)
-                self.send_response(200)
-                self.end_headers()
-                self.wfile.write(b"OK")
-
-            do_GET = _handle
-            do_POST = _handle
-
-        HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
+      - "11112"
     restart: unless-stopped
   app03:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    entrypoint: ["python", "-u", "-m", "worker.worker_scp"]
+    environment:
+      WORKER_AE_TITLE: "APP03"
+      WORKER_PORT: 11112
+      GATEWAY_HOST: "edge"
+      GATEWAY_PORT: 11112
+      GATEWAY_AE_TITLE: "MINI_EDGE"
     expose:
-      - "8080"
-    command:
-      - python
-      - -u
-      - -c
-      - |
-        import time
-        from http.server import BaseHTTPRequestHandler, HTTPServer
-
-        class Handler(BaseHTTPRequestHandler):
-            def _handle(self):
-                print("app03: received request", flush=True)
-                time.sleep(0.2)
-                self.send_response(200)
-                self.end_headers()
-                self.wfile.write(b"OK")
-
-            do_GET = _handle
-            do_POST = _handle
-
-        HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
+      - "11112"
     restart: unless-stopped
   app04:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    entrypoint: ["python", "-u", "-m", "worker.worker_scp"]
+    environment:
+      WORKER_AE_TITLE: "APP04"
+      WORKER_PORT: 11112
+      GATEWAY_HOST: "edge"
+      GATEWAY_PORT: 11112
+      GATEWAY_AE_TITLE: "MINI_EDGE"
     expose:
-      - "8080"
-    command:
-      - python
-      - -u
-      - -c
-      - |
-        import time
-        from http.server import BaseHTTPRequestHandler, HTTPServer
-
-        class Handler(BaseHTTPRequestHandler):
-            def _handle(self):
-                print("app04: received request", flush=True)
-                time.sleep(0.2)
-                self.send_response(200)
-                self.end_headers()
-                self.wfile.write(b"OK")
-
-            do_GET = _handle
-            do_POST = _handle
-
-        HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
+      - "11112"
     restart: unless-stopped
   app05:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    entrypoint: ["python", "-u", "-m", "worker.worker_scp"]
+    environment:
+      WORKER_AE_TITLE: "APP05"
+      WORKER_PORT: 11112
+      GATEWAY_HOST: "edge"
+      GATEWAY_PORT: 11112
+      GATEWAY_AE_TITLE: "MINI_EDGE"
     expose:
-      - "8080"
-    command:
-      - python
-      - -u
-      - -c
-      - |
-        import time
-        from http.server import BaseHTTPRequestHandler, HTTPServer
-
-        class Handler(BaseHTTPRequestHandler):
-            def _handle(self):
-                print("app05: received request", flush=True)
-                time.sleep(0.2)
-                self.send_response(200)
-                self.end_headers()
-                self.wfile.write(b"OK")
-
-            do_GET = _handle
-            do_POST = _handle
-
-        HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
+      - "11112"
     restart: unless-stopped

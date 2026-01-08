@@ -1,7 +1,7 @@
 import threading
 
 from pynetdicom import AE, evt
-from pynetdicom.sop_class import CTImageStorage, MRImageStorage
+from pynetdicom.sop_class import CTImageStorage, MRImageStorage, SecondaryCaptureImageStorage
 
 from forwarder.forwarder import Forwarder
 from queue_store.queue_manager import init_db
@@ -20,6 +20,7 @@ def start_receiver() -> None:
     ae = AE(ae_title=ae_title)
     ae.add_supported_context(CTImageStorage)
     ae.add_supported_context(MRImageStorage)
+    ae.add_supported_context(SecondaryCaptureImageStorage)
 
     handlers = [
         (evt.EVT_C_STORE, handle_store),
