@@ -29,7 +29,7 @@ ORTHANC/PACS -> [C-STORE] -> edge (receiver/queue/forwarder) -> workers -> edge 
 ### Ports
 
 - edge (DICOM): 11112
-- orthanc (DICOM): 4242, HTTP: 8042
+- orthanc (DICOM): 4242 (solo red interna), HTTP: 8042 (publicado)
 - ohif (HTTP): 3000
 
 ### Config
@@ -37,9 +37,12 @@ ORTHANC/PACS -> [C-STORE] -> edge (receiver/queue/forwarder) -> workers -> edge 
 Archivo: `config.yaml`
 
 - `edge.ae_title`, `edge.port`, rutas de data/logs.
+- `edge.allowed_calling_aets`: allowlist de Calling AE Titles (incluye Orthanc y workers).
 - `forwarder.mode: gateway` para ruteo automatico.
 - `forwarder.workers`: lista de workers con `host`, `port`, `ae_title`.
 - `forwarder.orthanc`: destino PACS/Orthanc (host/port/AET).
+
+Nota: si usas `sender_simulator.py` desde el host, usa `--calling-aet ORTHANC` o agrega ese AET a `edge.allowed_calling_aets`.
 
 ## Run (lab)
 
@@ -57,13 +60,13 @@ docker compose up --build
 ### Enviar un estudio desde el host
 
 ```sh
-python sender_simulator.py ./path/to/dicom
+python sender_simulator.py ./path/to/dicom --calling-aet ORTHANC
 ```
 
 Burst send:
 
 ```sh
-python sender_simulator.py ./dicoms --burst 5 --delay-ms 50
+python sender_simulator.py ./dicoms --burst 5 --delay-ms 50 --calling-aet ORTHANC
 ```
 
 ### Ver estudios en OHIF
@@ -99,6 +102,15 @@ Config en `config.yaml`:
 - `forwarder.workers`: lista de workers con `host`, `port`, `ae_title`.
 
 Los resultados de los workers se marcan con `SeriesDescription = AI_RESULT` y se reenvian a Orthanc/PACS.
+
+## Network isolation (Docker)
+
+- `pacs_net`: edge + orthanc + ohif (+ postgres).
+- `workers_net`: edge + workers.
+- orthanc no esta en `workers_net`.
+- workers no estan en `pacs_net`.
+
+Esto bloquea acceso directo de workers a Orthanc.
 
 ## Faults (inside container)
 
@@ -136,3 +148,85 @@ docker exec -it mini_pacs_edge python /app/cli.py clear-faults
 - Receiver accepts CT, MR, and Secondary Capture.
 - Files are stored in `data/incoming/<StudyUID>/<SOPUID>.dcm`.
 - Queue and states persist across restarts (PostgreSQL).
+
+## Validation (lab)
+
+### Checklist rapido (arquitectura nueva)
+
+1) AE permitido entra y se procesa (debe llegar a worker y volver a Orthanc)
+
+```sh
+docker exec -it mini_pacs_edge python /app/sender_simulator.py /tmp/test.dcm --host edge --port 11112 --calling-aet ORTHANC --called-aet MINI_EDGE
+docker compose logs edge | Select-String -Pattern "worker|result|forward"
+```
+
+2) AE no permitido es rechazado
+
+```sh
+docker exec -it mini_pacs_edge python /app/sender_simulator.py /tmp/test.dcm --host edge --port 11112 --calling-aet NOPE_AET --called-aet MINI_EDGE
+docker compose logs edge | Select-String -Pattern "NOPE_AET|calling_aet_not_allowed"
+```
+
+3) Workers no alcanzan Orthanc por red
+
+```sh
+docker exec -it mini_pacs_edge-app01-1 python - <<'PY'
+import socket
+sock = socket.socket()
+sock.settimeout(2)
+try:
+    sock.connect(("orthanc", 4242))
+    print("UNEXPECTED: connected")
+except Exception as exc:
+    print("expected failure:", exc)
+finally:
+    sock.close()
+PY
+```
+
+### Enviar un estudio
+
+```sh
+python sender_simulator.py ./path/to/dicom --calling-aet ORTHANC
+```
+
+### Verificar aislamiento (workers -> orthanc debe fallar)
+
+```sh
+docker exec -it mini_pacs_edge-app01-1 python - <<'PY'
+import socket
+sock = socket.socket()
+sock.settimeout(2)
+try:
+    sock.connect(("orthanc", 4242))
+    print("UNEXPECTED: connected")
+except Exception as exc:
+    print("expected failure:", exc)
+finally:
+    sock.close()
+PY
+```
+
+### Verificar allowlist de AE Titles (debe ser rechazado)
+
+```sh
+python sender_simulator.py ./path/to/dicom --calling-aet BAD_AET
+```
+
+Revisar logs:
+
+```sh
+docker compose logs -f edge
+```
+
+### Verificar trazabilidad en PostgreSQL
+
+```sh
+docker exec -it mini_pacs_edge python /app/cli.py status --study <StudyInstanceUID>
+```
+
+Y en logs (correlacion):
+
+```sh
+docker compose logs -f edge
+```

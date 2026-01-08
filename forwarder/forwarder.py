@@ -9,7 +9,7 @@ from pynetdicom.sop_class import CTImageStorage, MRImageStorage, SecondaryCaptur
 
 from fault_injector.faults import FaultError, apply_faults, simulate_disk_full
 from queue_store.models import STATE_FAILED, STATE_FORWARDING, STATE_QUEUED, STATE_SENT
-from queue_store.queue_manager import get_next_queued, increment_retry, update_state
+from queue_store.queue_manager import get_next_queued, increment_retry, mark_worker_sent, update_state
 from receiver.config import get_config, log_event
 
 
@@ -51,13 +51,13 @@ class Forwarder:
 
                 destination = self.mode
                 if self.mode == "workers":
-                    self._send_to_worker(queued_path)
+                    self._send_to_worker(queued_path, item.id)
                 elif self.mode == "orthanc":
                     self._send_to_orthanc(queued_path)
                 elif self.mode == "gateway":
                     route = self._determine_route(queued_path)
                     if route == "worker":
-                        self._send_to_worker(queued_path)
+                        self._send_to_worker(queued_path, item.id)
                         destination = "worker"
                     elif route == "orthanc":
                         self._send_to_orthanc(queued_path)
@@ -106,6 +106,7 @@ class Forwarder:
         ae = AE(ae_title=self.config["edge"]["ae_title"])
         ae.add_requested_context(CTImageStorage)
         ae.add_requested_context(MRImageStorage)
+        ae.add_requested_context(SecondaryCaptureImageStorage)
         ae.acse_timeout = timeout_s
         ae.dimse_timeout = timeout_s
         ae.network_timeout = timeout_s
@@ -139,7 +140,7 @@ class Forwarder:
         if status_code != 0x0000:
             raise ForwardError(f"c_store_failure:{status_code}")
 
-    def _send_to_worker(self, source_path: str) -> None:
+    def _send_to_worker(self, source_path: str, item_id: int) -> None:
         if not self._worker_cycle:
             raise ForwardError("workers_unconfigured")
         worker = next(self._worker_cycle)
@@ -147,6 +148,7 @@ class Forwarder:
         port = int(worker.get("port", 11112))
         called_aet = str(worker.get("ae_title", "WORKER"))
         timeout_s = float(worker.get("timeout_s", 10))
+        mark_worker_sent(item_id, host, called_aet)
 
         ae = AE(ae_title=self.config["edge"]["ae_title"])
         ae.add_requested_context(CTImageStorage)
@@ -191,6 +193,7 @@ class Forwarder:
             study_uid=getattr(ds, "StudyInstanceUID", None),
             sop_uid=getattr(ds, "SOPInstanceUID", None),
             ae_title=self.config["edge"]["ae_title"],
+            worker=worker,
             remote_ip=None,
             outcome="delivered",
             error=None,

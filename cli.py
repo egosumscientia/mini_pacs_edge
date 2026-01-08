@@ -4,7 +4,7 @@ from typing import Dict
 
 import yaml
 
-from queue_store.queue_manager import get_counts
+from queue_store.queue_manager import get_counts, get_study_rows
 from receiver.dicom_receiver import start_receiver
 
 
@@ -30,7 +30,15 @@ def cmd_start(_: argparse.Namespace) -> None:
     start_receiver()
 
 
-def cmd_status(_: argparse.Namespace) -> None:
+def cmd_status(args: argparse.Namespace) -> None:
+    if args.study:
+        rows = get_study_rows(args.study)
+        if not rows:
+            print("No records found")
+            return
+        for row in rows:
+            print(row)
+        return
     counts = get_counts()
     for state, count in counts.items():
         print(f"{state}: {count}")
@@ -68,6 +76,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_start.set_defaults(func=cmd_start)
 
     p_status = sub.add_parser("status")
+    p_status.add_argument("--study", default=None)
     p_status.set_defaults(func=cmd_status)
 
     p_inject = sub.add_parser("inject-fault")
