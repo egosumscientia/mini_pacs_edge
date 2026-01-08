@@ -1,0 +1,18 @@
+{
+  "Name": "mini_pacs_orthanc",
+  "DicomAet": "ORTHANC",
+  "DicomPort": 4242,
+  "HttpPort": 8042,
+  "RemoteAccessAllowed": true,
+  "AuthenticationEnabled": false,
+  "DicomAlwaysAllowStore": true,
+  "DicomAlwaysAllowEcho": true,
+  "DicomWeb": {
+    "Enable": true,
+    "PublicRoot": "http://localhost:3000/orthanc/dicom-web/"
+  },
+  "HttpAccessControlAllowOrigin": "*",
+  "HttpAccessControlAllowMethods": "GET, POST, PUT, DELETE, OPTIONS",
+  "HttpAccessControlAllowHeaders": "Origin, Accept, Content-Type",
+  "LogLevel": "info"
+}

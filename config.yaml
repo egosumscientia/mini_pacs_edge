@@ -1,0 +1,23 @@
+edge:
+  ae_title: "MINI_EDGE"
+  port: 11112
+  log_path: "logs/edge.log"
+  data_root: "data"
+  sqlite_path: "data/queue.db"
+
+forwarder:
+  mode: "orthanc"
+  max_retries: 5
+  backoff_base_seconds: 2
+  poll_interval_seconds: 2
+  orthanc:
+    host: "orthanc"
+    port: 4242
+    ae_title: "ORTHANC"
+    timeout_s: 10
+
+fault_injection:
+  reject_all: false
+  disk_full: false
+  io_delay_ms: 0
+  random_fail_rate: 0.0

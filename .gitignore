@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.python-version
+.venv/
+venv/
+env/
+
+# Logs and runtime data
+*.log
+logs/
+data/
+queue_store/
+
+# Environment / secrets
+.env
+.env.*
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Docker
+*.pid
