@@ -4,7 +4,7 @@ from typing import Dict
 
 import yaml
 
-from queue_store.queue_manager import get_counts, get_study_rows
+from queue_store.queue_manager import get_counts, get_study_rows, reset_queue
 from receiver.dicom_receiver import start_receiver
 
 
@@ -68,6 +68,11 @@ def cmd_clear_faults(_: argparse.Namespace) -> None:
     print("Faults cleared")
 
 
+def cmd_reset_db(_: argparse.Namespace) -> None:
+    reset_queue(reset_sequence=True)
+    print("Database cleared and study sequence reset")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Mini PACS Edge CLI")
     sub = parser.add_subparsers(dest="command")
@@ -85,6 +90,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_clear = sub.add_parser("clear-faults")
     p_clear.set_defaults(func=cmd_clear_faults)
+
+    p_reset = sub.add_parser("reset-db")
+    p_reset.set_defaults(func=cmd_reset_db)
 
     return parser
 
