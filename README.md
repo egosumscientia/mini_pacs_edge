@@ -74,6 +74,24 @@ Burst send:
 python sender_simulator.py ./dicoms --burst 5 --delay-ms 50 --calling-aet ORTHANC
 ```
 
+Generar estudios dinamicos (sin archivos previos):
+
+```sh
+python sender_simulator.py --generate 3 --out-dir ./tmp_dicoms --calling-aet ORTHANC
+```
+
+Reescribir UIDs en cada envio (evita duplicados de Study/SOP):
+
+```sh
+python sender_simulator.py ./path/to/dicom --rewrite-uids --calling-aet ORTHANC
+```
+
+Reescribir UIDs manualmente:
+
+```sh
+python sender_simulator.py ./path/to/dicom --rewrite-uids --study-uid 1.2.3 --series-uid 1.2.3.4 --sop-uid 1.2.3.4.5 --calling-aet ORTHANC
+```
+
 ### Ver estudios en OHIF
 
 - Abrir `http://localhost:3000` en el navegador.

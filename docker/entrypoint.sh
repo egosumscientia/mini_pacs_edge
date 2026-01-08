@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+if [ "${GENERATE_TEST_DICOM:-0}" = "1" ]; then
 python - <<'PY'
 import datetime
 from pathlib import Path
@@ -40,4 +41,5 @@ ds.PixelData = b"\x00\x00"
 ds.save_as(str(path), write_like_original=False)
 print(f"Wrote {path}")
 PY
+fi
 exec python /app/cli.py start

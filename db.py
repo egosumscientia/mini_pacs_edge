@@ -1,4 +1,5 @@
 import os
+import threading
 import time
 from typing import Optional
 
@@ -16,7 +17,7 @@ DEFAULTS = {
     "password": "mini_pacs",
 }
 
-_CONN: Optional[psycopg2.extensions.connection] = None
+_CONN_LOCAL = threading.local()
 
 
 def _db_params() -> dict:
@@ -67,8 +68,9 @@ def _connect_with_retry(max_attempts: int = 10, delay_seconds: int = 2) -> psyco
 
 
 def get_connection() -> psycopg2.extensions.connection:
-    global _CONN
-    if _CONN is not None and _CONN.closed == 0:
-        return _CONN
-    _CONN = _connect_with_retry()
-    return _CONN
+    conn: Optional[psycopg2.extensions.connection] = getattr(_CONN_LOCAL, "conn", None)
+    if conn is not None and conn.closed == 0:
+        return conn
+    conn = _connect_with_retry()
+    _CONN_LOCAL.conn = conn
+    return conn
